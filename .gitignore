@@ -1,0 +1,10 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.egg-info/
+.claude/
+results/original_transcripts*.json
+results/reconstructed_transcripts*.json
+results/wer_raw_results*.csv
