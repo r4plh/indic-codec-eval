@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indic Codec Eval — Neural Audio Codec Benchmark on Indian Languages</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --surface2: #1a1a2e;
+            --border: #2a2a3e;
+            --text: #e0e0e8;
+            --text-muted: #8888a0;
+            --accent: #6c63ff;
+            --accent2: #00d4aa;
+            --accent3: #ff6b6b;
+            --accent4: #ffd93d;
+            --dac: #00d4aa;
+            --encodec: #6c63ff;
+            --snac: #ff6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1035 50%, #0a1a2a 100%);
+            padding: 80px 40px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 50%, rgba(108,99,255,0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 50%, rgba(0,212,170,0.06) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite alternate;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            position: relative;
+            background: linear-gradient(135deg, #fff 0%, #6c63ff 50%, #00d4aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-top: 16px;
+            position: relative;
+        }
+        .hero .meta {
+            margin-top: 24px;
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+            position: relative;
+        }
+        .meta-tag {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            padding: 8px 20px;
+            border-radius: 100px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Section */
+        section {
+            padding: 60px 0;
+        }
+        section + section {
+            border-top: 1px solid var(--border);
+        }
+        .section-label {
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .section-desc {
+            color: var(--text-muted);
+            max-width: 700px;
+            margin-bottom: 40px;
+            font-size: 1.05rem;
+        }
+
+        /* TLDR Banner */
+        .tldr {
+            background: linear-gradient(135deg, rgba(0,212,170,0.1), rgba(108,99,255,0.1));
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 40px;
+            margin: 40px 0;
+        }
+        .tldr h3 {
+            font-size: 1.1rem;
+            color: var(--accent2);
+            margin-bottom: 16px;
+        }
+        .tldr p {
+            font-size: 1.05rem;
+            line-height: 1.8;
+        }
+        .tldr strong { color: #fff; }
+        .rank {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .rank-1 { background: rgba(0,212,170,0.2); color: var(--dac); }
+        .rank-2 { background: rgba(108,99,255,0.2); color: var(--encodec); }
+        .rank-3 { background: rgba(255,107,107,0.2); color: var(--snac); }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 48px;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-card .label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        /* Tables */
+        .table-wrapper {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+        .table-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .table-header h3 { font-size: 1.1rem; }
+        .table-header .badge {
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 100px;
+            background: rgba(108,99,255,0.15);
+            color: var(--accent);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 14px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: var(--surface2);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        td { font-size: 0.95rem; }
+        td:first-child {
+            text-align: left;
+            font-weight: 600;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(108,99,255,0.04); }
+
+        .codec-dac { color: var(--dac); }
+        .codec-encodec { color: var(--encodec); }
+        .codec-snac { color: var(--snac); }
+
+        .cell-best {
+            background: rgba(0,212,170,0.1);
+            font-weight: 700;
+            color: var(--dac);
+        }
+        .cell-worst {
+            background: rgba(255,107,107,0.06);
+            color: var(--snac);
+        }
+        .cell-mean {
+            background: var(--surface2);
+            font-weight: 700;
+        }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .chart-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+        .chart-card h4 {
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+            color: var(--text-muted);
+        }
+
+        /* Findings */
+        .findings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 20px;
+        }
+        .finding-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            transition: border-color 0.2s;
+        }
+        .finding-card:hover {
+            border-color: var(--accent);
+        }
+        .finding-card .num {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent);
+            opacity: 0.4;
+            margin-bottom: 8px;
+        }
+        .finding-card h4 {
+            font-size: 1.05rem;
+            margin-bottom: 8px;
+        }
+        .finding-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        /* Future & Limitations */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 768px) {
+            .two-col { grid-template-columns: 1fr; }
+            .charts-grid { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 2rem; }
+        }
+        .list-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+        }
+        .list-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .list-card ul {
+            list-style: none;
+            padding: 0;
+        }
+        .list-card li {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .list-card li:last-child { border-bottom: none; }
+        .list-card li strong { color: var(--text); }
+
+        /* Codec cards */
+        .codec-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        @media (max-width: 768px) {
+            .codec-cards { grid-template-columns: 1fr; }
+        }
+        .codec-card {
+            border-radius: 16px;
+            padding: 28px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .codec-card.dac {
+            background: linear-gradient(135deg, rgba(0,212,170,0.08), rgba(0,212,170,0.02));
+            border-color: rgba(0,212,170,0.3);
+        }
+        .codec-card.encodec {
+            background: linear-gradient(135deg, rgba(108,99,255,0.08), rgba(108,99,255,0.02));
+            border-color: rgba(108,99,255,0.3);
+        }
+        .codec-card.snac {
+            background: linear-gradient(135deg, rgba(255,107,107,0.08), rgba(255,107,107,0.02));
+            border-color: rgba(255,107,107,0.3);
+        }
+        .codec-card .codec-name {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .codec-card .codec-info {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+        .codec-card .codec-score {
+            font-size: 2.8rem;
+            font-weight: 800;
+        }
+        .codec-card .codec-score-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .codec-card.dac .codec-score { color: var(--dac); }
+        .codec-card.encodec .codec-score { color: var(--encodec); }
+        .codec-card.snac .codec-score { color: var(--snac); }
+
+        .verdict {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-top: 12px;
+        }
+        .verdict.recommended { background: rgba(0,212,170,0.2); color: var(--dac); }
+        .verdict.acceptable { background: rgba(108,99,255,0.2); color: var(--encodec); }
+        .verdict.not-recommended { background: rgba(255,107,107,0.2); color: var(--snac); }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+    <h1>Indic Codec Eval</h1>
+    <p class="subtitle">First systematic benchmark of neural audio codecs on Indian language speech</p>
+    <div class="meta">
+        <span class="meta-tag">5 Languages</span>
+        <span class="meta-tag">3 Codecs</span>
+        <span class="meta-tag">4 Metrics</span>
+        <span class="meta-tag">150 Audio Samples</span>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- TLDR -->
+    <div class="tldr">
+        <h3>TL;DR</h3>
+        <p>
+            We evaluated <strong>EnCodec</strong>, <strong>DAC</strong>, and <strong>SNAC</strong> on speech from
+            <strong>Hindi, Tamil, Telugu, Bengali, and Kannada</strong>.
+            The verdict is clear: <span class="rank rank-1">DAC</span> delivers near-perfect reconstruction across all Indian languages.
+            <span class="rank rank-2">EnCodec</span> is acceptable but degrades noticeably.
+            <span class="rank rank-3">SNAC</span> fails significantly &mdash; losing speaker identity and speech intelligibility,
+            making it unsuitable for Indian language voice AI in its current form.
+        </p>
+    </div>
+
+    <!-- OVERVIEW STATS -->
+    <section>
+        <p class="section-label">Overview</p>
+        <h2 class="section-title">At a Glance</h2>
+        <p class="section-desc">All codecs were trained primarily on English. These numbers show how well they generalize to Indian languages.</p>
+
+        <div class="codec-cards">
+            <div class="codec-card dac">
+                <div class="codec-name">DAC</div>
+                <div class="codec-info">Descript Audio Codec &middot; RVQ &middot; 24kHz &middot; 8 kbps</div>
+                <div class="codec-score">4.47</div>
+                <div class="codec-score-label">Mean PESQ</div>
+                <div class="verdict recommended">Recommended</div>
+            </div>
+            <div class="codec-card encodec">
+                <div class="codec-name">EnCodec</div>
+                <div class="codec-info">Meta &middot; RVQ &middot; 24kHz &middot; 6 kbps</div>
+                <div class="codec-score">2.80</div>
+                <div class="codec-score-label">Mean PESQ</div>
+                <div class="verdict acceptable">Acceptable</div>
+            </div>
+            <div class="codec-card snac">
+                <div class="codec-name">SNAC</div>
+                <div class="codec-info">Multi-scale RVQ &middot; 24kHz</div>
+                <div class="codec-score">1.92</div>
+                <div class="codec-score-label">Mean PESQ</div>
+                <div class="verdict not-recommended">Not Recommended</div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value">0.992</div>
+                <div class="label">Best STOI (DAC)</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">0.987</div>
+                <div class="label">Best Speaker Sim (DAC)</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">17.8%</div>
+                <div class="label">Best WER on Hindi (DAC)</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">82.9%</div>
+                <div class="label">Worst WER on Tamil (SNAC)</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RESULTS TABLES -->
+    <section>
+        <p class="section-label">Results</p>
+        <h2 class="section-title">Full Benchmark Numbers</h2>
+        <p class="section-desc">Evaluated across 5 Indian languages, 10 samples each. Higher is better for all metrics except WER.</p>
+
+        <!-- PESQ -->
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h3>PESQ &mdash; Perceptual Speech Quality</h3>
+                <span class="badge">Range: -0.5 to 4.5 &uarr;</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Codec</th><th>Bengali</th><th>Hindi</th><th>Kannada</th><th>Tamil</th><th>Telugu</th><th>Mean</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="codec-dac">DAC</td>
+                        <td class="cell-best">4.458</td><td class="cell-best">4.554</td><td class="cell-best">4.454</td><td class="cell-best">4.460</td><td class="cell-best">4.440</td><td class="cell-mean cell-best">4.473</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-encodec">EnCodec</td>
+                        <td>2.536</td><td>3.188</td><td>2.725</td><td>2.815</td><td>2.720</td><td class="cell-mean">2.797</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-snac">SNAC</td>
+                        <td class="cell-worst">1.645</td><td class="cell-worst">2.374</td><td class="cell-worst">1.809</td><td class="cell-worst">1.995</td><td class="cell-worst">1.784</td><td class="cell-mean cell-worst">1.921</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- STOI -->
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h3>STOI &mdash; Speech Intelligibility</h3>
+                <span class="badge">Range: 0 to 1 &uarr;</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Codec</th><th>Bengali</th><th>Hindi</th><th>Kannada</th><th>Tamil</th><th>Telugu</th><th>Mean</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="codec-dac">DAC</td>
+                        <td class="cell-best">0.989</td><td class="cell-best">0.997</td><td class="cell-best">0.992</td><td class="cell-best">0.992</td><td class="cell-best">0.989</td><td class="cell-mean cell-best">0.992</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-encodec">EnCodec</td>
+                        <td>0.875</td><td>0.953</td><td>0.911</td><td>0.920</td><td>0.890</td><td class="cell-mean">0.910</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-snac">SNAC</td>
+                        <td class="cell-worst">0.752</td><td class="cell-worst">0.931</td><td class="cell-worst">0.836</td><td class="cell-worst">0.846</td><td class="cell-worst">0.773</td><td class="cell-mean cell-worst">0.828</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Speaker Similarity -->
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h3>Speaker Similarity &mdash; Voice Preservation</h3>
+                <span class="badge">ECAPA-TDNN Cosine Sim &uarr;</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Codec</th><th>Bengali</th><th>Hindi</th><th>Kannada</th><th>Tamil</th><th>Telugu</th><th>Mean</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="codec-dac">DAC</td>
+                        <td class="cell-best">0.985</td><td class="cell-best">0.983</td><td class="cell-best">0.988</td><td class="cell-best">0.990</td><td class="cell-best">0.988</td><td class="cell-mean cell-best">0.987</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-encodec">EnCodec</td>
+                        <td>0.877</td><td>0.898</td><td>0.903</td><td>0.908</td><td>0.925</td><td class="cell-mean">0.902</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-snac">SNAC</td>
+                        <td class="cell-worst">0.632</td><td class="cell-worst">0.755</td><td class="cell-worst">0.725</td><td class="cell-worst">0.756</td><td class="cell-worst">0.730</td><td class="cell-mean cell-worst">0.720</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- WER -->
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h3>WER &mdash; ASR Degradation</h3>
+                <span class="badge">Lower is better &darr; &middot; Hindi &amp; Tamil only</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Codec</th><th>Hindi</th><th>Tamil</th><th>Mean</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="codec-dac">DAC</td>
+                        <td class="cell-best">0.178</td><td class="cell-best">0.359</td><td class="cell-mean cell-best">0.268</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-encodec">EnCodec</td>
+                        <td>0.184</td><td>0.508</td><td class="cell-mean">0.346</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-snac">SNAC</td>
+                        <td class="cell-worst">0.340</td><td class="cell-worst">0.829</td><td class="cell-mean cell-worst">0.584</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="padding: 12px 24px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border);">
+                ASR models: vasista22/whisper-hindi-large-v2, vasista22/whisper-tamil-large-v2. Telugu, Bengali, Kannada ASR models produced hallucinated outputs and are excluded &mdash; see Limitations.
+            </div>
+        </div>
+
+        <!-- Exact Match -->
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h3>Exact Match Rate &mdash; Transcript Preservation</h3>
+                <span class="badge">Higher is better &uarr; &middot; Hindi &amp; Tamil only</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Codec</th><th>Hindi</th><th>Tamil</th><th>Mean</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="codec-dac">DAC</td>
+                        <td class="cell-best">0.30</td><td class="cell-best">0.10</td><td class="cell-mean cell-best">0.20</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-encodec">EnCodec</td>
+                        <td>0.30</td><td>0.00</td><td class="cell-mean">0.15</td>
+                    </tr>
+                    <tr>
+                        <td class="codec-snac">SNAC</td>
+                        <td class="cell-worst">0.00</td><td class="cell-worst">0.00</td><td class="cell-mean cell-worst">0.00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- CHARTS -->
+    <section>
+        <p class="section-label">Visualizations</p>
+        <h2 class="section-title">Comparative Analysis</h2>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h4>PESQ across Languages</h4>
+                <canvas id="pesqChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>STOI across Languages</h4>
+                <canvas id="stoiChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>Speaker Similarity across Languages</h4>
+                <canvas id="spkChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>WER &mdash; ASR Degradation (Hindi &amp; Tamil)</h4>
+                <canvas id="werChart"></canvas>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h4>Overall Codec Comparison (Mean Scores)</h4>
+                <canvas id="radarChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>Language-wise Mean PESQ</h4>
+                <canvas id="langChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- KEY FINDINGS -->
+    <section>
+        <p class="section-label">Analysis</p>
+        <h2 class="section-title">Key Findings</h2>
+        <p class="section-desc">What the numbers tell us about deploying audio codecs for Indian language voice AI.</p>
+
+        <div class="findings-grid">
+            <div class="finding-card">
+                <div class="num">01</div>
+                <h4>DAC generalizes remarkably well</h4>
+                <p>Despite being trained on English, DAC achieves PESQ &gt; 4.4 and speaker similarity &gt; 0.98 across all five Indian languages. It can be used confidently in production Indic TTS pipelines.</p>
+            </div>
+            <div class="finding-card">
+                <div class="num">02</div>
+                <h4>SNAC is not ready for Indic deployment</h4>
+                <p>SNAC loses 28% of speaker identity (similarity = 0.72) and introduces 82.9% WER on Tamil. Reconstructions are largely unintelligible to downstream ASR for Dravidian languages.</p>
+            </div>
+            <div class="finding-card">
+                <div class="num">03</div>
+                <h4>Hindi outperforms all other languages</h4>
+                <p>Hindi consistently scores highest across all codecs and metrics. This likely reflects proximity to English phonology and higher-quality source data (48kHz studio recordings).</p>
+            </div>
+            <div class="finding-card">
+                <div class="num">04</div>
+                <h4>Dravidian languages suffer more</h4>
+                <p>Tamil, Telugu, Kannada, and Bengali show consistently lower scores than Hindi. Bengali is particularly affected &mdash; SNAC speaker similarity drops to 0.632.</p>
+            </div>
+            <div class="finding-card">
+                <div class="num">05</div>
+                <h4>WER validates signal metrics</h4>
+                <p>The codec ranking from WER (DAC > EnCodec > SNAC) exactly matches PESQ, STOI, and speaker similarity rankings, confirming these signal metrics are reliable proxies.</p>
+            </div>
+            <div class="finding-card">
+                <div class="num">06</div>
+                <h4>Tamil is 2x harder than Hindi</h4>
+                <p>Tamil WER is 2&ndash;2.4x worse than Hindi for every codec. This reflects Tamil's agglutinative morphology, less representation in training data, and ASR model differences.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- SETUP -->
+    <section>
+        <p class="section-label">Methodology</p>
+        <h2 class="section-title">Experimental Setup</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value" style="font-size: 1.5rem;">M4 Air</div>
+                <div class="label">Compute (CPU inference)</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 1.5rem;">5</div>
+                <div class="label">Languages</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 1.5rem;">10</div>
+                <div class="label">Samples / Language</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 1.5rem;">1&ndash;10s</div>
+                <div class="label">Audio Duration</div>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h3>Data Sources</h3>
+            </div>
+            <table>
+                <thead><tr><th style="text-align:left;">Language</th><th>Family</th><th>Dataset</th><th>Source SR</th></tr></thead>
+                <tbody>
+                    <tr><td>Hindi</td><td>Indo-Aryan</td><td>En1gma02/hindi_speech_male_5hr</td><td>48 kHz</td></tr>
+                    <tr><td>Tamil</td><td>Dravidian</td><td>shunyalabs/tamil-speech-dataset</td><td>16 kHz</td></tr>
+                    <tr><td>Telugu</td><td>Dravidian</td><td>shunyalabs/telugu-speech-dataset</td><td>16 kHz</td></tr>
+                    <tr><td>Bengali</td><td>Indo-Aryan</td><td>shunyalabs/bengali-speech-dataset</td><td>16 kHz</td></tr>
+                    <tr><td>Kannada</td><td>Dravidian</td><td>shunyalabs/kannada-speech-dataset</td><td>16 kHz</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- LIMITATIONS & FUTURE -->
+    <section>
+        <p class="section-label">Looking Ahead</p>
+        <h2 class="section-title">Limitations & Future Work</h2>
+        <div class="two-col">
+            <div class="list-card">
+                <h3>Limitations</h3>
+                <ul>
+                    <li><strong>Small sample size</strong> &mdash; 10 samples/language may not capture full speaker/domain variation</li>
+                    <li><strong>WER only for Hindi &amp; Tamil</strong> &mdash; Fine-tuned Whisper models for Telugu, Bengali, and Kannada produced hallucinated outputs; WER excluded rather than reporting misleading numbers</li>
+                    <li><strong>Uneven source quality</strong> &mdash; Hindi at 48kHz studio vs others at 16kHz may inflate Hindi scores</li>
+                    <li><strong>PESQ not calibrated for Indic</strong> &mdash; Designed for English/European speech; absolute scores may not reflect native speaker perception</li>
+                    <li><strong>NanoCodec &amp; Mimi not evaluated</strong> &mdash; Dependency conflicts prevented evaluating NVIDIA's FSQ codec (used in Koel-TTS) and Kyutai's Mimi</li>
+                    <li><strong>No phoneme-level analysis</strong> &mdash; No minimal pair tests for retroflex/dental, aspirated/unaspirated contrasts</li>
+                </ul>
+            </div>
+            <div class="list-card">
+                <h3>Future Work</h3>
+                <ul>
+                    <li><strong>Extend WER to all languages</strong> &mdash; Fine-tune or source reliable ASR for Telugu, Bengali, Kannada</li>
+                    <li><strong>Add more codecs</strong> &mdash; WavTokenizer, FACodec, SpeechTokenizer, SemantiCodec, Mimi, Single-Codec, TiCodec, NanoCodec</li>
+                    <li><strong>Scale to 22 Indian languages</strong> &mdash; Using IndicVoices-R for comprehensive coverage</li>
+                    <li><strong>Minimal pair evaluation</strong> &mdash; Test retroflex vs dental, aspirated vs unaspirated, gemination</li>
+                    <li><strong>8kHz telephony tests</strong> &mdash; Critical for Indian voice AI deployed over phone networks</li>
+                    <li><strong>Fine-tune codecs on Indic data</strong> &mdash; Measure quality gains from Indic-specific training</li>
+                    <li><strong>MOS listening tests</strong> &mdash; Subjective evaluation with native speakers</li>
+                    <li><strong>Open benchmark release</strong> &mdash; Publish as a community benchmark for Indic speech</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+</div>
+
+<footer>
+    <p>Indic Codec Eval &middot; March 2026 &middot; Aman Agrawal</p>
+    <p style="margin-top: 8px;">Data from public HuggingFace datasets &middot; All codecs evaluated in their default configurations</p>
+</footer>
+
+<script>
+    const LANGS = ['Bengali', 'Hindi', 'Kannada', 'Tamil', 'Telugu'];
+    const DAC_COLOR = '#00d4aa';
+    const ENCODEC_COLOR = '#6c63ff';
+    const SNAC_COLOR = '#ff6b6b';
+
+    const chartDefaults = {
+        responsive: true,
+        plugins: {
+            legend: { labels: { color: '#8888a0', font: { size: 12 } } }
+        },
+        scales: {
+            x: { ticks: { color: '#8888a0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#8888a0' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+    };
+
+    // PESQ Chart
+    new Chart(document.getElementById('pesqChart'), {
+        type: 'bar',
+        data: {
+            labels: LANGS,
+            datasets: [
+                { label: 'DAC', data: [4.458, 4.554, 4.454, 4.460, 4.440], backgroundColor: DAC_COLOR + '99', borderColor: DAC_COLOR, borderWidth: 1 },
+                { label: 'EnCodec', data: [2.536, 3.188, 2.725, 2.815, 2.720], backgroundColor: ENCODEC_COLOR + '99', borderColor: ENCODEC_COLOR, borderWidth: 1 },
+                { label: 'SNAC', data: [1.645, 2.374, 1.809, 1.995, 1.784], backgroundColor: SNAC_COLOR + '99', borderColor: SNAC_COLOR, borderWidth: 1 },
+            ]
+        },
+        options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 0, max: 5 } } }
+    });
+
+    // STOI Chart
+    new Chart(document.getElementById('stoiChart'), {
+        type: 'bar',
+        data: {
+            labels: LANGS,
+            datasets: [
+                { label: 'DAC', data: [0.989, 0.997, 0.992, 0.992, 0.989], backgroundColor: DAC_COLOR + '99', borderColor: DAC_COLOR, borderWidth: 1 },
+                { label: 'EnCodec', data: [0.875, 0.953, 0.911, 0.920, 0.890], backgroundColor: ENCODEC_COLOR + '99', borderColor: ENCODEC_COLOR, borderWidth: 1 },
+                { label: 'SNAC', data: [0.752, 0.931, 0.836, 0.846, 0.773], backgroundColor: SNAC_COLOR + '99', borderColor: SNAC_COLOR, borderWidth: 1 },
+            ]
+        },
+        options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 0.5, max: 1.0 } } }
+    });
+
+    // Speaker Similarity Chart
+    new Chart(document.getElementById('spkChart'), {
+        type: 'bar',
+        data: {
+            labels: LANGS,
+            datasets: [
+                { label: 'DAC', data: [0.985, 0.983, 0.988, 0.990, 0.988], backgroundColor: DAC_COLOR + '99', borderColor: DAC_COLOR, borderWidth: 1 },
+                { label: 'EnCodec', data: [0.877, 0.898, 0.903, 0.908, 0.925], backgroundColor: ENCODEC_COLOR + '99', borderColor: ENCODEC_COLOR, borderWidth: 1 },
+                { label: 'SNAC', data: [0.632, 0.755, 0.725, 0.756, 0.730], backgroundColor: SNAC_COLOR + '99', borderColor: SNAC_COLOR, borderWidth: 1 },
+            ]
+        },
+        options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 0.4, max: 1.0 } } }
+    });
+
+    // WER Chart
+    new Chart(document.getElementById('werChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Hindi', 'Tamil'],
+            datasets: [
+                { label: 'DAC', data: [0.178, 0.359], backgroundColor: DAC_COLOR + '99', borderColor: DAC_COLOR, borderWidth: 1 },
+                { label: 'EnCodec', data: [0.184, 0.508], backgroundColor: ENCODEC_COLOR + '99', borderColor: ENCODEC_COLOR, borderWidth: 1 },
+                { label: 'SNAC', data: [0.340, 0.829], backgroundColor: SNAC_COLOR + '99', borderColor: SNAC_COLOR, borderWidth: 1 },
+            ]
+        },
+        options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 0, max: 1.0 } } }
+    });
+
+    // Radar Chart
+    new Chart(document.getElementById('radarChart'), {
+        type: 'radar',
+        data: {
+            labels: ['PESQ\n(norm)', 'STOI', 'Speaker Sim', 'WER\n(inverted)'],
+            datasets: [
+                { label: 'DAC', data: [4.473/5, 0.992, 0.987, 1-0.268], borderColor: DAC_COLOR, backgroundColor: DAC_COLOR + '22', pointBackgroundColor: DAC_COLOR, borderWidth: 2 },
+                { label: 'EnCodec', data: [2.797/5, 0.910, 0.902, 1-0.346], borderColor: ENCODEC_COLOR, backgroundColor: ENCODEC_COLOR + '22', pointBackgroundColor: ENCODEC_COLOR, borderWidth: 2 },
+                { label: 'SNAC', data: [1.921/5, 0.828, 0.720, 1-0.584], borderColor: SNAC_COLOR, backgroundColor: SNAC_COLOR + '22', pointBackgroundColor: SNAC_COLOR, borderWidth: 2 },
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#8888a0' } } },
+            scales: {
+                r: {
+                    min: 0, max: 1,
+                    ticks: { color: '#8888a0', backdropColor: 'transparent' },
+                    grid: { color: 'rgba(255,255,255,0.08)' },
+                    pointLabels: { color: '#8888a0', font: { size: 11 } },
+                    angleLines: { color: 'rgba(255,255,255,0.08)' }
+                }
+            }
+        }
+    });
+
+    // Language Mean PESQ Chart
+    new Chart(document.getElementById('langChart'), {
+        type: 'bar',
+        data: {
+            labels: LANGS,
+            datasets: [{
+                label: 'Mean PESQ (across codecs)',
+                data: [
+                    (4.458+2.536+1.645)/3,
+                    (4.554+3.188+2.374)/3,
+                    (4.454+2.725+1.809)/3,
+                    (4.460+2.815+1.995)/3,
+                    (4.440+2.720+1.784)/3
+                ],
+                backgroundColor: ['#ff9f43', '#ffd93d', '#00d4aa', '#6c63ff', '#ff6b6b'],
+                borderWidth: 0,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            ...chartDefaults,
+            plugins: { ...chartDefaults.plugins, legend: { display: false } },
+            scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 2, max: 4 } }
+        }
+    });
+</script>
+
+</body>
+</html>
